@@ -11,4 +11,4 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-exec uv run python -m ji_slack_admin.hwp_pdf_bot
+exec uv run python -m hwp_pdf_slack_bot
