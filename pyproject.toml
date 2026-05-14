@@ -1,6 +1,6 @@
 [project]
 name = "hwp-pdf-slack-bot"
-version = "2026.05.14.3"
+version = "2026.05.14.4"
 description = "Slack bot that auto-converts uploaded Korean HWP/HWPX files into PDF previews via headless LibreOffice + H2Orestart."
 readme = "README.md"
 requires-python = ">=3.10"

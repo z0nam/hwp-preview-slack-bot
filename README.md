@@ -77,6 +77,11 @@ choose your workspace. Then:
   want channel use.)
 - **Event Subscriptions** — enable; under **Subscribe to bot events** add
   `file_shared`.
+- **App Home → Messages Tab** — turn the *Messages Tab* on, then tick
+  *"Allow users to send Slash commands and messages from the messages tab"*.
+  Without this the DM input is greyed out and users see "Sending messages
+  to this app has been turned off", even with the scopes above. Skip this
+  step if you only want channel use.
 - **Install to Workspace** to mint your Bot Token (`xoxb-…`).
 - **Basic Information → Display Information** — optionally upload
   `assets/icon.png` as the app icon.
@@ -156,3 +161,11 @@ Full third-party attribution is in [NOTICE](NOTICE).
 
 - General contributions: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security issues: [SECURITY.md](SECURITY.md)
+
+## Acknowledgments
+
+- [**H2Orestart**](https://github.com/ebandal/H2Orestart) by Bandal — the LibreOffice
+  extension that does the actual HWP/HWPX import work. This bot would not be
+  possible without it.
+- The initial implementation, OSS-ification, and operational hardening of this
+  bot were paired with [**Claude Code**](https://claude.ai/code) by Anthropic.

@@ -3,6 +3,15 @@
 This project follows **CalVer**: `YYYY.0M.0D.N` where `N` increments
 for multiple releases on the same date.
 
+## 2026.05.14.4 — 2026-05-14
+
+- **Docs**: Slack app setup section now calls out **App Home → Messages
+  Tab → enable + allow user messages**, which is required for users to DM
+  the bot. Skipping this step leaves the DM input greyed out even when
+  `im:history` / `mpim:history` scopes are granted.
+- Acknowledgments section added to both READMEs, crediting H2Orestart
+  and noting that the implementation work was paired with Claude Code.
+
 ## 2026.05.14.3 — 2026-05-14
 
 - **Fix**: silent conversion failure when two HWPs were uploaded close
