@@ -12,6 +12,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import threading
 import urllib.request
 from typing import Any
 
@@ -30,6 +31,11 @@ log = logging.getLogger("hwp_pdf_bot")
 HWP_EXTS = {".hwp", ".hwpx"}
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 CONVERT_SH = REPO_ROOT / "scripts" / "hwp2pdf.sh"
+
+# Two HWPs uploaded close together would otherwise race on LibreOffice's
+# shared user profile — the second soffice attaches to the first as a client
+# and one PDF silently fails to materialize (exit 0, no output written).
+_convert_lock = threading.Lock()
 
 def _download(url: str, dest: pathlib.Path, token: str) -> None:
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
@@ -90,12 +96,13 @@ def build_app(bot_token: str) -> App:
                 )
                 return
 
-            result = subprocess.run(
-                [str(CONVERT_SH), str(local_input), str(td_path)],
-                capture_output=True,
-                text=True,
-                timeout=180,
-            )
+            with _convert_lock:
+                result = subprocess.run(
+                    [str(CONVERT_SH), str(local_input), str(td_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                )
             pdf_path = local_input.with_suffix(".pdf")
 
             if result.returncode != 0 or not pdf_path.exists():

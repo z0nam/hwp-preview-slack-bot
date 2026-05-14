@@ -71,7 +71,10 @@ choose your workspace. Then:
 - **Socket Mode** — enable, generate an App-Level Token with `connections:write`
   (this is your `xapp-…` token).
 - **OAuth & Permissions → Bot Token Scopes**: `files:read`, `files:write`,
-  `chat:write`, `channels:history`, `groups:history`.
+  `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`.
+  (`im:history` / `mpim:history` are what let the bot also respond to HWPs
+  uploaded in direct messages and group DMs with it; drop them if you only
+  want channel use.)
 - **Event Subscriptions** — enable; under **Subscribe to bot events** add
   `file_shared`.
 - **Install to Workspace** to mint your Bot Token (`xoxb-…`).

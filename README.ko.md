@@ -39,7 +39,8 @@ unopkg add ./vendor/H2Orestart-v0.7.12.oxt
 
 - **Socket Mode** ON → App-Level Token (`xapp-…`, scope `connections:write`) 발급
 - **OAuth & Permissions** → Bot Token Scopes: `files:read`, `files:write`,
-  `chat:write`, `channels:history`, `groups:history`
+  `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`
+  (뒤의 두 개는 봇과의 DM/그룹 DM에서도 hwp 자동 변환이 되게 해주는 스코프. 채널에서만 쓸 거면 빼도 무방.)
 - **Event Subscriptions** → Enable → Subscribe to bot events → `file_shared`
 - **Install to Workspace** → Bot Token (`xoxb-…`) 발급
 - **Basic Information → Display Information**: App icon은 `assets/icon.png` 사용

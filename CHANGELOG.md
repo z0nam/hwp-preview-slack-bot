@@ -3,6 +3,20 @@
 This project follows **CalVer**: `YYYY.0M.0D.N` where `N` increments
 for multiple releases on the same date.
 
+## 2026.05.14.3 — 2026-05-14
+
+- **Fix**: silent conversion failure when two HWPs were uploaded close
+  together in the same channel. slack-bolt's thread pool was firing two
+  `file_shared` handlers in parallel; the two `soffice --headless`
+  invocations contended on LibreOffice's shared user profile and one PDF
+  would not be written (process exited 0, no output). Conversion is now
+  serialized inside the bot with a `threading.Lock`.
+- Recommend two additional bot scopes (`im:history`, `mpim:history`) so
+  the bot also responds to HWPs uploaded in DMs and group DMs with it.
+  Required only if you want that behavior; pure channel usage is
+  unchanged. Adding the scopes requires reinstalling the app to the
+  workspace.
+
 ## 2026.05.14.2 — 2026-05-14
 
 First public release.
