@@ -58,8 +58,8 @@ claude.ai Slack MCP 가 전역으로 붙어있음 (`mcp__claude_ai_Slack__*`). �
 2. ~~변환 CLI 래퍼~~ ✅ `scripts/hwp2pdf.sh` (2026-05-13)
 3. ~~샘플 hwp 변환 충실도 검증~~ ✅ "대충 읽히면 OK" 수준 합의 (2026-05-13, 사용자 시각 확인)
 4. ~~Slack 봇 코드 스캐폴딩~~ ✅ `src/ji_slack_admin/hwp_pdf_bot.py` (Socket Mode, slack-bolt, 2026-05-13)
-5. ⏭️ **Slack 앱 생성 + 토큰 발급 + 채널 동작 검증** — 사용자 작업, [TOMORROW.md](TOMORROW.md) 참조
-6. ⏭️ 항시 실행 셋업 (launchd / 별도 호스트) — 검증 후
+5. ~~Slack 앱 생성 + 토큰 발급 + 채널 동작 검증~~ ✅ (2026-05-14, 사용자 작업)
+6. ~~항시 실행 셋업~~ ✅ macOS launchd LaunchAgent (2026-05-14)
 
 ### 변환 백엔드 셋업 메모 (macOS arm64)
 
@@ -104,11 +104,26 @@ claude.ai Slack MCP 가 전역으로 붙어있음 (`mcp__claude_ai_Slack__*`). �
 - 봇이 자신이 올린 PDF 에 다시 반응할 위험 없음 — `.pdf` 확장자는 필터에서 제외됨.
 - 변환 timeout 180초. 대형 hwp 면 더 길어질 수 있으니 추후 조정.
 
+### 운영 셋업 (macOS launchd, 2026-05-14~)
+
+호스트: 본인 맥미니. LaunchAgent (사용자 세션) 로 등록 — 자동 로그인 ON 전제.
+
+- plist: `~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist` (레포 밖, 호스트 종속)
+- 로그: `~/Library/Logs/hwp-pdf-bot.{log,err}` (실로그는 stderr 쪽)
+- KeepAlive=true, ThrottleInterval=10 — 크래시 시 자동 재시작
+- PATH 환경변수에 `/Users/namun/.local/bin`(uv), `/opt/homebrew/bin`(soffice) 명시
+- 토큰 회전 시 `.env` 수정 후 `launchctl kickstart -k gui/$(id -u)/com.namun.hwp-pdf-bot`
+- 클라우드/리눅스 이전 시 plist 폐기 후 systemd unit 으로 교체 (LibreOffice + JDK + H2Orestart 셋업은 거의 동일하게 재현됨)
+
+### Slack 앱 아이콘
+
+`assets/icon.png` (1024×1024, Pillow 로 생성). `scripts/make_icon.py` 에서 색/크기/라벨 조정 후 재생성 가능. Slack 앱 페이지 → Basic Information → Display Information 에 업로드해서 사용.
+
 ## 상태
 
-2026-05-13 마감 시점:
+2026-05-14: **운영 단계 진입**.
 
-- 변환 백엔드 완료, 샘플 2건 변환 검증 OK
-- 봇 코드 스캐폴딩 + 의존성 설치 (`uv sync`) 완료, 모듈 import 검증 통과
-- 토큰만 채우면 즉시 실행 가능 상태
-- 다음 단계 = [TOMORROW.md](TOMORROW.md) (사용자 직접 작업)
+- Slack 앱 등록 완료, 토큰 발급/주입 완료
+- 테스트 채널에서 hwp → PDF 변환 동작 확인됨 (사용자 시각 검증)
+- launchd LaunchAgent 로 항시 실행 중 (`launchctl list | grep hwp-pdf`)
+- 실사용 채널로의 점진적 배포는 사용자 페이스로 진행

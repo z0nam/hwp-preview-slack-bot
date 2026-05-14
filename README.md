@@ -36,7 +36,15 @@ unopkg add ./vendor/H2Orestart-v0.7.12.oxt
 
 ### Slack 앱 셋업 (1회)
 
-`TOMORROW.md` 참조.
+[api.slack.com/apps](https://api.slack.com/apps) → Create New App (From scratch) →
+Workspace 선택. 이후:
+
+- **Socket Mode** ON → App-Level Token (`xapp-…`, scope `connections:write`) 발급
+- **OAuth & Permissions** → Bot Token Scopes: `files:read`, `files:write`,
+  `chat:write`, `channels:history`, `groups:history`
+- **Event Subscriptions** → Enable → Subscribe to bot events → `file_shared`
+- **Install to Workspace** → Bot Token (`xoxb-…`) 발급
+- **Basic Information → Display Information**: App icon은 `assets/icon.png` 사용
 
 ### 실행
 
@@ -48,12 +56,34 @@ uv sync
 
 Bot 이 머무는 채널에 누가 hwp를 올리면 1~10초 후 PDF가 같은 스레드에 회신됨.
 
+### 항시 실행 (launchd, macOS)
+
+`~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist` 로 사용자 LaunchAgent 등록.
+재부팅·로그인 시 자동 시작, 크래시 시 자동 재시작.
+
+```bash
+# 등록
+launchctl load -w ~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist
+
+# 상태 / 로그
+launchctl list | grep hwp-pdf
+tail -f ~/Library/Logs/hwp-pdf-bot.err   # python logging 은 stderr 로 감
+
+# 재시작 / 중지
+launchctl kickstart -k gui/$(id -u)/com.namun.hwp-pdf-bot
+launchctl unload ~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist
+```
+
+전제: 호스트 맥이 자동 로그인 + 잠자기 꺼져있을 것 (LaunchAgent 는 GUI 세션에 의존).
+
 ## 디렉토리
 
 ```
 src/ji_slack_admin/hwp_pdf_bot.py   봇 본체 (Socket Mode)
 scripts/hwp2pdf.sh                  HWP/HWPX → PDF (LibreOffice headless)
 scripts/run_bot.sh                  봇 런처
+scripts/make_icon.py                Slack 앱 아이콘 생성기 (Pillow)
+assets/icon.png                     Slack 앱 등록용 아이콘 (1024×1024)
 samples/                            변환 검증용 (PDF는 .gitignore)
 vendor/H2Orestart-*.oxt             LibreOffice 확장
 context.md                          내부 컨텍스트 (AI/신규합류자용)
