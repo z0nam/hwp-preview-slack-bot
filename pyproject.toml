@@ -1,12 +1,40 @@
 [project]
 name = "hwp-pdf-slack-bot"
-version = "2026.05.14.1"
-description = "JRI Slack workspace admin tooling — HWP→PDF preview bot, ops scripts"
+version = "2026.05.14.2"
+description = "Slack bot that auto-converts uploaded Korean HWP/HWPX files into PDF previews via headless LibreOffice + H2Orestart."
+readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Namun Cho" },
+]
+keywords = ["slack", "slack-bot", "hwp", "hwpx", "pdf", "korean", "libreoffice", "h2orestart"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+    "Topic :: Office/Business",
+    "Topic :: Text Processing :: Markup",
+]
 dependencies = [
     "slack-bolt>=1.21",
     "python-dotenv>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/z0nam/hwp-pdf-slack-bot"
+Repository = "https://github.com/z0nam/hwp-pdf-slack-bot"
+Issues = "https://github.com/z0nam/hwp-pdf-slack-bot/issues"
+Changelog = "https://github.com/z0nam/hwp-pdf-slack-bot/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

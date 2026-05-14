@@ -1,0 +1,53 @@
+hwp-pdf-slack-bot
+Copyright 2026 Namun Cho
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this work except in compliance with the License.
+You may obtain a copy of the License in the LICENSE file at the
+root of this repository.
+
+================================================================
+Third-party components bundled or required at runtime
+================================================================
+
+H2Orestart (vendor/H2Orestart-v0.7.12.oxt)
+  Homepage: https://github.com/ebandal/H2Orestart
+  License:  GNU Lesser General Public License v2.1 or later (LGPL-2.1+)
+  Purpose:  LibreOffice extension that adds HWP/HWPX import filters,
+            used by scripts/hwp2pdf.sh for the actual document conversion.
+  The full LGPL text and source are available at the project homepage.
+  Users may replace this bundled binary with a modified version of
+  H2Orestart at any time (drop a new .oxt into vendor/ and re-run
+  `unopkg add`).
+
+LibreOffice
+  Homepage: https://www.libreoffice.org/
+  License:  Mozilla Public License v2.0
+  Purpose:  Headless document conversion engine. Installed by the user,
+            not bundled.
+
+OpenJDK
+  Homepage: https://openjdk.org/
+  License:  GPL-2.0-with-classpath-exception
+  Purpose:  Java runtime required by H2Orestart. Installed by the user,
+            not bundled.
+
+Slack Bolt for Python
+  Homepage: https://github.com/SlackAPI/bolt-python
+  License:  MIT
+  Purpose:  Slack app framework. Installed as a Python dependency.
+
+python-dotenv
+  Homepage: https://github.com/theskumar/python-dotenv
+  License:  BSD-3-Clause
+  Purpose:  Loads tokens from .env at startup. Installed as a Python dependency.
+
+================================================================
+Sample documents (samples/)
+================================================================
+
+The sample HWP/HWPX files under samples/ originate from publicly
+released Jeju Provincial Government policy documents (Jeju
+Provincial Office, Policy Planning Office). They are included for
+conversion-fidelity testing on real-world government formatting and
+may be replaced with user-provided test fixtures at any time.

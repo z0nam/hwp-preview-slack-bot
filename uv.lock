@@ -4,7 +4,7 @@ requires-python = ">=3.10"
 
 [[package]]
 name = "hwp-pdf-slack-bot"
-version = "2026.5.14.1"
+version = "2026.5.14.2"
 source = { editable = "." }
 dependencies = [
     { name = "python-dotenv" },
