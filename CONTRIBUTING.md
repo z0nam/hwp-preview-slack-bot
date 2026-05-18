@@ -6,8 +6,8 @@ HWP/HWPX previews in Slack — and PRs that keep it that way are most welcome.
 ## Setting up a dev environment
 
 ```bash
-git clone git@github.com:z0nam/hwp-pdf-slack-bot.git
-cd hwp-pdf-slack-bot
+git clone git@github.com:z0nam/hwp-preview-slack-bot.git
+cd hwp-preview-slack-bot
 
 # system deps (macOS arm64 example — see README for full setup)
 brew install --cask libreoffice
@@ -22,7 +22,8 @@ Run the conversion script standalone to confirm the LibreOffice +
 H2Orestart toolchain works on your machine:
 
 ```bash
-./scripts/hwp2pdf.sh samples/sample-binary.hwp /tmp/
+./scripts/hwp2x.sh pdf  samples/sample-binary.hwp /tmp/
+./scripts/hwp2x.sh docx samples/sample-binary.hwp /tmp/
 ```
 
 To run the bot itself you need a Slack workspace and two tokens — see
@@ -34,8 +35,8 @@ the README's "Slack app setup" and "Configure and run" sections.
 - Linux setup walkthroughs verified end-to-end.
 - A `Dockerfile` / `docker-compose.yml` that bundles LibreOffice + JDK +
   H2Orestart and runs the bot.
-- Tests for `scripts/hwp2pdf.sh` and the event handler in
-  `src/hwp_pdf_slack_bot/__main__.py`.
+- Tests for `scripts/hwp2x.sh` and the event handler in
+  `src/hwp_preview_slack_bot/__main__.py`.
 - Better fidelity: tuning `soffice` flags, alternative HWP backends,
   font handling improvements.
 - Operational extras: metrics, structured logging, channel topic-based
@@ -43,10 +44,11 @@ the README's "Slack app setup" and "Configure and run" sections.
 
 ## What we'd rather not add (without strong reason)
 
-- New triggers beyond `file_shared` for HWP/HWPX — keep the bot scope small.
+- New triggers beyond `file_shared` for HWP/HWPX inputs — keep the bot scope small.
 - Heavy web-app surface (dashboards, admin UI). Bot stays Socket Mode.
-- Format support outside the HWP family. If you need Word / Excel / etc.
-  previews, that's worth its own project.
+- Input formats outside the HWP family. The bot is specifically a
+  HWP/HWPX → preview tool; if you need Word / Excel / etc. previews,
+  Slack already renders most of them natively or it's worth its own project.
 
 ## Workflow
 

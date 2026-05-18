@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Template macOS LaunchAgent for hwp-pdf-slack-bot.
+  Template macOS LaunchAgent for hwp-preview-slack-bot.
 
-  1. Copy this file to  ~/Library/LaunchAgents/com.<your-user>.hwp-pdf-bot.plist
+  1. Copy this file to  ~/Library/LaunchAgents/com.<your-user>.hwp-preview-bot.plist
   2. Replace the placeholders below:
 
        __USER__          your macOS username (e.g.  alice)
        __HOME__          your home directory  (e.g.  /Users/alice)
        __PROJECT_PATH__  full path to this repo's working copy
-                         (e.g.  /Users/alice/dev/hwp-pdf-slack-bot)
+                         (e.g.  /Users/alice/dev/hwp-preview-slack-bot)
 
-     The Label should match the filename, i.e.  com.<your-user>.hwp-pdf-bot
+     The Label should match the filename, i.e.  com.<your-user>.hwp-preview-bot
 
   3. Load it:
-       launchctl load -w ~/Library/LaunchAgents/com.<your-user>.hwp-pdf-bot.plist
+       launchctl load -w ~/Library/LaunchAgents/com.<your-user>.hwp-preview-bot.plist
 
   Notes:
   - Adjust the PATH below if your uv lives elsewhere, or if you are on
@@ -25,7 +25,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.__USER__.hwp-pdf-bot</string>
+    <string>com.__USER__.hwp-preview-bot</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -53,9 +53,9 @@
     <integer>10</integer>
 
     <key>StandardOutPath</key>
-    <string>__HOME__/Library/Logs/hwp-pdf-bot.log</string>
+    <string>__HOME__/Library/Logs/hwp-preview-bot.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__HOME__/Library/Logs/hwp-pdf-bot.err</string>
+    <string>__HOME__/Library/Logs/hwp-preview-bot.err</string>
 </dict>
 </plist>

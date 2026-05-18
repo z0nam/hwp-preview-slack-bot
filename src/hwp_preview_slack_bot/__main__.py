@@ -1,8 +1,9 @@
-"""HWP→PDF preview bot for Slack.
+"""HWP preview bot for Slack.
 
 Listens for `file_shared` events; if the shared file is .hwp/.hwpx, downloads it,
-converts to PDF via scripts/hwp2pdf.sh (LibreOffice + H2Orestart), and re-uploads
-the PDF as a threaded reply in the same channel. Original HWP stays attached.
+converts to PDF and DOCX via scripts/hwp2x.sh (LibreOffice + H2Orestart), and
+re-uploads both files as a threaded reply in the same channel. Original HWP
+stays attached.
 """
 
 from __future__ import annotations
@@ -26,15 +27,16 @@ logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-log = logging.getLogger("hwp_pdf_bot")
+log = logging.getLogger("hwp_preview_bot")
 
 HWP_EXTS = {".hwp", ".hwpx"}
+OUT_FORMATS = ("pdf", "docx")
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-CONVERT_SH = REPO_ROOT / "scripts" / "hwp2pdf.sh"
+CONVERT_SH = REPO_ROOT / "scripts" / "hwp2x.sh"
 
 # Two HWPs uploaded close together would otherwise race on LibreOffice's
 # shared user profile — the second soffice attaches to the first as a client
-# and one PDF silently fails to materialize (exit 0, no output written).
+# and one output silently fails to materialize (exit 0, no file written).
 _convert_lock = threading.Lock()
 
 def _download(url: str, dest: pathlib.Path, token: str) -> None:
@@ -96,35 +98,61 @@ def build_app(bot_token: str) -> App:
                 )
                 return
 
+            produced: list[pathlib.Path] = []
+            failures: list[tuple[str, str]] = []
             with _convert_lock:
-                result = subprocess.run(
-                    [str(CONVERT_SH), str(local_input), str(td_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=180,
-                )
-            pdf_path = local_input.with_suffix(".pdf")
+                for fmt in OUT_FORMATS:
+                    result = subprocess.run(
+                        [str(CONVERT_SH), fmt, str(local_input), str(td_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=180,
+                    )
+                    out_path = local_input.with_suffix(f".{fmt}")
+                    if result.returncode == 0 and out_path.exists():
+                        produced.append(out_path)
+                    else:
+                        tail = (result.stderr or result.stdout or "").strip()[-500:]
+                        log.warning(
+                            "conversion failed file=%s fmt=%s rc=%s",
+                            file_id, fmt, result.returncode,
+                        )
+                        failures.append((fmt, tail or "(no output)"))
 
-            if result.returncode != 0 or not pdf_path.exists():
-                tail = (result.stderr or result.stdout or "").strip()[-500:]
-                log.warning("conversion failed file=%s rc=%s", file_id, result.returncode)
+            if not produced:
+                detail = "\n".join(f"- {fmt}: {tail}" for fmt, tail in failures)
                 client.chat_postMessage(
                     channel=channel,
                     thread_ts=thread_ts,
-                    text=f":warning: `{name}` PDF 변환 실패\n```{tail or '(no output)'}```",
+                    text=f":warning: `{name}` 변환 실패\n```{detail}```",
                 )
                 return
+
+            comment_parts = [
+                ":page_facing_up: 자동 변환 미리보기 (원본 hwp는 위 첨부 그대로 사용)."
+            ]
+            if failures:
+                missed = ", ".join(fmt.upper() for fmt, _ in failures)
+                comment_parts.append(f":warning: {missed} 변환은 실패.")
 
             try:
                 client.files_upload_v2(
                     channel=channel,
                     thread_ts=thread_ts,
-                    file=str(pdf_path),
-                    filename=pdf_path.name,
-                    title=f"{name} — PDF 미리보기",
-                    initial_comment=":page_facing_up: 자동 변환 PDF 미리보기 (원본 hwp는 위 첨부 그대로 사용).",
+                    file_uploads=[
+                        {
+                            "file": str(p),
+                            "filename": p.name,
+                            "title": f"{name} — {p.suffix.lstrip('.').upper()} 변환본",
+                        }
+                        for p in produced
+                    ],
+                    initial_comment="\n".join(comment_parts),
                 )
-                log.info("uploaded pdf file=%s pdf=%s", file_id, pdf_path.name)
+                log.info(
+                    "uploaded file=%s outputs=%s",
+                    file_id, [p.name for p in produced],
+                )
             except Exception:
                 log.exception("upload failed file=%s", file_id)
 
@@ -137,7 +165,7 @@ def main() -> None:
     bot_token = os.environ["SLACK_BOT_TOKEN"]
     app_token = os.environ["SLACK_APP_TOKEN"]
     app = build_app(bot_token)
-    log.info("hwp-pdf bot starting (socket mode)")
+    log.info("hwp-preview bot starting (socket mode)")
     SocketModeHandler(app, app_token).start()
 
 

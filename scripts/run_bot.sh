@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the HWP→PDF Slack bot in Socket Mode.
+# Launch the HWP preview Slack bot in Socket Mode.
 # Reads tokens from .env in repo root.
 set -euo pipefail
 
@@ -11,4 +11,4 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-exec uv run python -m hwp_pdf_slack_bot
+exec uv run python -m hwp_preview_slack_bot

@@ -1,12 +1,13 @@
-# hwp-pdf-slack-bot
+# hwp-preview-slack-bot
 
 > 한국어 안내: [README.ko.md](README.ko.md)
 
 A Slack bot that auto-converts uploaded **HWP / HWPX** files (the
-Korean Hancom Office formats) into PDF previews and posts them back
-into the same thread, so teammates without Hancom Office installed
-can read the document right in Slack. The original `.hwp` upload is
-left untouched.
+Korean Hancom Office formats) into **PDF + DOCX** previews and posts
+both back into the same thread, so teammates without Hancom Office
+installed can read the document right in Slack — or grab the DOCX
+to edit it in Word / Google Docs / LibreOffice. The original `.hwp`
+upload is left untouched.
 
 Conversion runs entirely on a headless **LibreOffice + [H2Orestart](https://github.com/ebandal/H2Orestart)**
 stack, so the bot is happy on macOS or Linux without any Windows /
@@ -15,7 +16,7 @@ Hancom dependency.
 ## Features
 
 - Listens for Slack `file_shared` events; processes only `.hwp` / `.hwpx`.
-- Replies in the same channel & thread with the generated PDF.
+- Replies in the same channel & thread with the generated PDF **and** DOCX.
 - Runs as a long-lived Socket Mode bot — no public HTTPS endpoint needed.
 - Self-contained: a single Python module + a shell script wrapping `soffice`.
 - macOS launchd template included for keep-alive operation.
@@ -59,8 +60,9 @@ with a tested Linux setup walkthrough welcome.
 Sanity-check the conversion pipeline by itself:
 
 ```bash
-./scripts/hwp2pdf.sh samples/sample-binary.hwp
-./scripts/hwp2pdf.sh samples/sample-xml.hwpx
+./scripts/hwp2x.sh pdf  samples/sample-binary.hwp
+./scripts/hwp2x.sh docx samples/sample-binary.hwp
+./scripts/hwp2x.sh pdf  samples/sample-xml.hwpx
 ```
 
 ## Slack app setup (one-off)
@@ -95,8 +97,8 @@ uv sync
 ```
 
 Invite the bot to any channel where you want HWP previews (`/invite @<bot-name>`).
-Upload a `.hwp` or `.hwpx` — a PDF reply lands in the same thread within
-seconds to a few tens of seconds depending on document size.
+Upload a `.hwp` or `.hwpx` — a PDF + DOCX reply lands in the same thread
+within seconds to a few tens of seconds depending on document size.
 
 ## Keep-alive on macOS (launchd)
 
@@ -105,13 +107,13 @@ Copy it to `~/Library/LaunchAgents/`, substitute the `__…__` placeholders for
 your username and project path, then:
 
 ```bash
-launchctl load -w ~/Library/LaunchAgents/com.<you>.hwp-pdf-bot.plist
+launchctl load -w ~/Library/LaunchAgents/com.<you>.hwp-preview-bot.plist
 
 # operations
-launchctl list | grep hwp-pdf
-tail -f ~/Library/Logs/hwp-pdf-bot.err     # python logging goes to stderr
-launchctl kickstart -k gui/$(id -u)/com.<you>.hwp-pdf-bot
-launchctl unload     ~/Library/LaunchAgents/com.<you>.hwp-pdf-bot.plist
+launchctl list | grep hwp-preview
+tail -f ~/Library/Logs/hwp-preview-bot.err   # python logging goes to stderr
+launchctl kickstart -k gui/$(id -u)/com.<you>.hwp-preview-bot
+launchctl unload     ~/Library/LaunchAgents/com.<you>.hwp-preview-bot.plist
 ```
 
 Assumptions: the host Mac is set to auto-login and to not sleep — LaunchAgents
@@ -123,30 +125,32 @@ For Linux deployments, write a systemd unit pointing at the same
 ## Repository layout
 
 ```
-src/hwp_pdf_slack_bot/__main__.py     Bot entry point (Socket Mode)
-scripts/hwp2pdf.sh                    HWP/HWPX → PDF via headless soffice
-scripts/run_bot.sh                    Convenience launcher
-scripts/make_icon.py                  Regenerates assets/icon.png (Pillow)
-assets/icon.png                       Slack app icon, 1024×1024
-samples/                              Conversion-fidelity test inputs
-vendor/H2Orestart-*.oxt               LibreOffice import-filter extension
-examples/launchd.template.plist       macOS keep-alive template
-context.md                            Project / decision notes (Korean)
+src/hwp_preview_slack_bot/__main__.py  Bot entry point (Socket Mode)
+scripts/hwp2x.sh                       HWP/HWPX → PDF or DOCX via headless soffice
+scripts/run_bot.sh                     Convenience launcher
+scripts/make_icon.py                   Regenerates assets/icon.png (Pillow)
+assets/icon.png                        Slack app icon, 1024×1024
+samples/                               Conversion-fidelity test inputs
+vendor/H2Orestart-*.oxt                LibreOffice import-filter extension
+examples/launchd.template.plist        macOS keep-alive template
+context.md                             Project / decision notes (Korean)
 ```
 
 ## Fidelity policy
 
-The PDF is intended as a "good-enough-to-read" preview, not a substitute
-for the source document. Some font / table-alignment quirks are expected
-on heavily-formatted government templates. The original HWP stays attached
-to the Slack message, so anyone who needs pixel-faithful rendering can
-still download it. Only a complete conversion failure justifies swapping
-out the backend.
+The PDF and DOCX outputs are intended as "good-enough-to-read"
+previews (and a working starting point for edits in the DOCX case),
+not pixel-faithful substitutes for the source document. Some font /
+table-alignment quirks are expected on heavily-formatted government
+templates. The original HWP stays attached to the Slack message, so
+anyone who needs faithful rendering can still download it. Only a
+complete conversion failure justifies swapping out the backend.
 
 ## Versioning
 
 This project uses **CalVer** (`YYYY.0M.0D.N`). Release `2026.05.14.2`
-is the first public release; see [CHANGELOG.md](CHANGELOG.md).
+was the first public release (then under the name `hwp-pdf-slack-bot`);
+see [CHANGELOG.md](CHANGELOG.md).
 
 ## License & attribution
 

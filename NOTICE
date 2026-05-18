@@ -1,4 +1,4 @@
-hwp-pdf-slack-bot
+hwp-preview-slack-bot
 Copyright 2026 Namun Cho
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@ H2Orestart (vendor/H2Orestart-v0.7.12.oxt)
   Homepage: https://github.com/ebandal/H2Orestart
   License:  GNU Lesser General Public License v2.1 or later (LGPL-2.1+)
   Purpose:  LibreOffice extension that adds HWP/HWPX import filters,
-            used by scripts/hwp2pdf.sh for the actual document conversion.
+            used by scripts/hwp2x.sh for the actual document conversion.
   The full LGPL text and source are available at the project homepage.
   Users may replace this bundled binary with a modified version of
   H2Orestart at any time (drop a new .oxt into vendor/ and re-run

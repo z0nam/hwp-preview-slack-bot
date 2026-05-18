@@ -1,8 +1,8 @@
-# hwp-pdf-slack-bot
+# hwp-preview-slack-bot
 
-Slack 채널에 올라온 한컴오피스 파일(`.hwp` / `.hwpx`)을 자동으로 PDF로 변환해 같은 스레드에 미리보기로 회신하는 봇. 원본 hwp는 그대로 유지됨.
+Slack 채널에 올라온 한컴오피스 파일(`.hwp` / `.hwpx`)을 자동으로 PDF + DOCX로 변환해 같은 스레드에 회신하는 봇. 원본 hwp는 그대로 유지됨.
 
-한컴오피스가 설치돼 있지 않은 멤버도 채널에서 바로 내용을 확인할 수 있게 하는 게 목적. macOS/Linux 헤드리스 환경에서 LibreOffice + [H2Orestart](https://github.com/ebandal/H2Orestart) 확장으로 변환.
+한컴오피스가 설치돼 있지 않은 멤버도 채널에서 바로 내용을 확인할 수 있고(PDF), 필요하면 워드/구글닥스/리브레오피스로 바로 편집할 수 있게(DOCX) 하는 게 목적. macOS/Linux 헤드리스 환경에서 LibreOffice + [H2Orestart](https://github.com/ebandal/H2Orestart) 확장으로 변환.
 
 ## 설치
 
@@ -29,8 +29,9 @@ unopkg add ./vendor/H2Orestart-v0.7.12.oxt
 변환 단독 검증:
 
 ```bash
-./scripts/hwp2pdf.sh samples/sample-binary.hwp
-./scripts/hwp2pdf.sh samples/sample-xml.hwpx
+./scripts/hwp2x.sh pdf  samples/sample-binary.hwp
+./scripts/hwp2x.sh docx samples/sample-binary.hwp
+./scripts/hwp2x.sh pdf  samples/sample-xml.hwpx
 ```
 
 ### Slack 앱 셋업 (1회)
@@ -56,23 +57,23 @@ uv sync
 ./scripts/run_bot.sh
 ```
 
-봇이 머무는(초대된) 채널에 누가 hwp를 올리면 1~10초 후 PDF가 같은 스레드에 회신됨.
+봇이 머무는(초대된) 채널에 누가 hwp를 올리면 1~10초 후 PDF + DOCX가 같은 스레드에 회신됨.
 
 ## 항시 실행 (launchd, macOS)
 
-`~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist` 로 사용자 LaunchAgent 등록.
+`~/Library/LaunchAgents/com.namun.hwp-preview-bot.plist` 로 사용자 LaunchAgent 등록.
 재부팅·로그인 시 자동 시작, 크래시 시 자동 재시작.
 
 ```bash
-launchctl load -w ~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist
+launchctl load -w ~/Library/LaunchAgents/com.namun.hwp-preview-bot.plist
 
 # 상태 / 로그
-launchctl list | grep hwp-pdf
-tail -f ~/Library/Logs/hwp-pdf-bot.err   # python logging 은 stderr 로 감
+launchctl list | grep hwp-preview
+tail -f ~/Library/Logs/hwp-preview-bot.err   # python logging 은 stderr 로 감
 
 # 재시작 / 중지
-launchctl kickstart -k gui/$(id -u)/com.namun.hwp-pdf-bot
-launchctl unload ~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist
+launchctl kickstart -k gui/$(id -u)/com.namun.hwp-preview-bot
+launchctl unload ~/Library/LaunchAgents/com.namun.hwp-preview-bot.plist
 ```
 
 전제: 호스트 맥이 자동 로그인 + 잠자기 꺼져있을 것 (LaunchAgent는 GUI 세션에 의존).
@@ -82,19 +83,19 @@ launchctl unload ~/Library/LaunchAgents/com.namun.hwp-pdf-bot.plist
 ## 디렉토리
 
 ```
-src/hwp_pdf_slack_bot/__main__.py    봇 본체 (Socket Mode, slack-bolt)
-scripts/hwp2pdf.sh                   HWP/HWPX → PDF (LibreOffice headless)
-scripts/run_bot.sh                   봇 런처
-scripts/make_icon.py                 Slack 앱 아이콘 생성기 (Pillow)
-assets/icon.png                      Slack 앱 등록용 아이콘 (1024×1024)
-samples/                             변환 검증용 (PDF는 .gitignore)
-vendor/H2Orestart-*.oxt              LibreOffice 확장
-context.md                           내부 컨텍스트 (AI/신규합류자용)
+src/hwp_preview_slack_bot/__main__.py  봇 본체 (Socket Mode, slack-bolt)
+scripts/hwp2x.sh                       HWP/HWPX → PDF/DOCX (LibreOffice headless)
+scripts/run_bot.sh                     봇 런처
+scripts/make_icon.py                   Slack 앱 아이콘 생성기 (Pillow)
+assets/icon.png                        Slack 앱 등록용 아이콘 (1024×1024)
+samples/                               변환 검증용 (PDF/DOCX는 .gitignore)
+vendor/H2Orestart-*.oxt                LibreOffice 확장
+context.md                             내부 컨텍스트 (AI/신규합류자용)
 ```
 
 ## 충실도 정책
 
-PDF 변환은 "대충 읽히면 OK" 수준. 원본 hwp는 슬랙 첨부로 그대로 남아있으므로 PDF는 미리보기 보조 자료. 폰트/표 정렬이 일부 깨져도 허용. 완전 실패할 때만 백엔드 교체 검토.
+PDF / DOCX 변환 모두 "대충 읽히면 OK" / "DOCX는 편집 시작점으로 쓸 만하면 OK" 수준. 원본 hwp는 슬랙 첨부로 그대로 남아있으므로 회신본은 보조 자료. 폰트/표 정렬이 일부 깨져도 허용. 완전 실패할 때만 백엔드 교체 검토.
 
 ## 라이선스 / 출처 메모
 

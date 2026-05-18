@@ -5,7 +5,7 @@
 If you find a security issue in this project, **please do not open a
 public GitHub issue**. Instead:
 
-1. Open a [private security advisory](https://github.com/z0nam/hwp-pdf-slack-bot/security/advisories/new)
+1. Open a [private security advisory](https://github.com/z0nam/hwp-preview-slack-bot/security/advisories/new)
    on this repository, or
 2. Email the maintainer directly (see the GitHub profile at
    [@z0nam](https://github.com/z0nam) for current contact info).
@@ -25,8 +25,8 @@ high-severity issues; lower-severity issues may be batched.
 
 In scope:
 
-- The bot code in `src/hwp_pdf_slack_bot/`.
-- The shell conversion wrapper `scripts/hwp2pdf.sh`.
+- The bot code in `src/hwp_preview_slack_bot/`.
+- The shell conversion wrapper `scripts/hwp2x.sh`.
 - The launchd template in `examples/`.
 
 Out of scope (please report upstream instead):

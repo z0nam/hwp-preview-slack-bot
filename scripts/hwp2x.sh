@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# hwp2pdf.sh — convert HWP/HWPX to PDF via LibreOffice + H2Orestart (headless).
-# Usage: hwp2pdf.sh <input.hwp[x]> [<outdir>]
-# Outputs <outdir>/<basename>.pdf (defaults to alongside input).
+# hwp2x.sh — convert HWP/HWPX to PDF or DOCX via LibreOffice + H2Orestart (headless).
+# Usage: hwp2x.sh <pdf|docx> <input.hwp[x]> [<outdir>]
+# Outputs <outdir>/<basename>.<fmt> (defaults to alongside input).
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <input.hwp[x]> [<outdir>]" >&2
+if [[ $# -lt 2 ]]; then
+  echo "usage: $0 <pdf|docx> <input.hwp[x]> [<outdir>]" >&2
   exit 2
 fi
 
-input=$1
-outdir=${2:-$(dirname "$input")}
+fmt=$1
+input=$2
+outdir=${3:-$(dirname "$input")}
+
+case "$fmt" in
+  pdf|docx) ;;
+  *) echo "error: unsupported format '$fmt' (expected pdf or docx)" >&2; exit 2 ;;
+esac
 
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -29,6 +35,6 @@ fi
   --headless \
   --norestore --nologo --nofirststartwizard \
   ${filter_args[@]+"${filter_args[@]}"} \
-  --convert-to pdf \
+  --convert-to "$fmt" \
   --outdir "$outdir" \
   "$input"
