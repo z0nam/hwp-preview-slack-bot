@@ -76,7 +76,8 @@ choose your workspace. Then:
   `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`.
   (`im:history` / `mpim:history` are what let the bot also respond to HWPs
   uploaded in direct messages and group DMs with it; drop them if you only
-  want channel use.)
+  want channel use.) Add `channels:read` + `channels:join` if you want to use
+  `scripts/join_all_public.py` to bulk-join every public channel.
 - **Event Subscriptions** — enable; under **Subscribe to bot events** add
   `file_shared`.
 - **App Home → Messages Tab** — turn the *Messages Tab* on, then tick

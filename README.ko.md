@@ -42,6 +42,7 @@ unopkg add ./vendor/H2Orestart-v0.7.12.oxt
 - **OAuth & Permissions** → Bot Token Scopes: `files:read`, `files:write`,
   `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`
   (뒤의 두 개는 봇과의 DM/그룹 DM에서도 hwp 자동 변환이 되게 해주는 스코프. 채널에서만 쓸 거면 빼도 무방.)
+  `scripts/join_all_public.py` 로 공개 채널 전체에 일괄 join 시키려면 `channels:read` + `channels:join` 추가 필요.
 - **Event Subscriptions** → Enable → Subscribe to bot events → `file_shared`
 - **App Home → Messages Tab** → 토글 ON + "Allow users to send Slash commands and messages from the messages tab" 체크.
   이거 안 켜면 DM 입력창이 비활성화되고 "이 앱으로 메시지를 보내는 기능이 꺼져 있습니다" 표시됨. 위 스코프만으론 부족.
