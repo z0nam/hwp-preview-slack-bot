@@ -17,6 +17,8 @@ Hancom dependency.
 
 - Listens for Slack `file_shared` events; processes only `.hwp` / `.hwpx`.
 - Replies in the same channel & thread with the generated PDF **and** DOCX.
+- Deletes its own preview reply when the original upload is deleted, so a
+  non-admin uploader isn't left with an orphaned preview they can't remove.
 - Runs as a long-lived Socket Mode bot — no public HTTPS endpoint needed.
 - Self-contained: a single Python module + a shell script wrapping `soffice`.
 - macOS launchd template included for keep-alive operation.
@@ -79,7 +81,11 @@ choose your workspace. Then:
   want channel use.) Add `channels:read` + `channels:join` if you want to use
   `scripts/join_all_public.py` to bulk-join every public channel.
 - **Event Subscriptions** — enable; under **Subscribe to bot events** add
-  `file_shared`.
+  `file_shared`. For the delete-with-original behavior also add
+  `message.channels`, `message.groups`, `message.im`, `message.mpim` (these
+  reuse the `*:history` scopes above — no new scopes, but save and reinstall
+  if Slack prompts). Without them the bot still posts previews; it just can't
+  clean them up when the original is deleted.
 - **App Home → Messages Tab** — turn the *Messages Tab* on, then tick
   *"Allow users to send Slash commands and messages from the messages tab"*.
   Without this the DM input is greyed out and users see "Sending messages

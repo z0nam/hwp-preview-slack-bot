@@ -4,6 +4,12 @@ Listens for `file_shared` events; if the shared file is .hwp/.hwpx, downloads it
 converts to PDF and DOCX via scripts/hwp2x.sh (LibreOffice + H2Orestart), and
 re-uploads both files as a threaded reply in the same channel. Original HWP
 stays attached.
+
+Also listens for `message_deleted` events: when the original upload is deleted,
+the bot deletes its own preview reply too, so non-admin uploaders aren't left
+with an orphaned preview they can't remove. Deleting a message that still has
+thread replies leaves a tombstone, so the thread (and our reply) remains
+readable — we just scan it and remove our own messages. No state to persist.
 """
 
 from __future__ import annotations
@@ -39,6 +45,7 @@ CONVERT_SH = REPO_ROOT / "scripts" / "hwp2x.sh"
 # and one output silently fails to materialize (exit 0, no file written).
 _convert_lock = threading.Lock()
 
+
 def _download(url: str, dest: pathlib.Path, token: str) -> None:
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req) as resp, dest.open("wb") as f:
@@ -58,8 +65,56 @@ def _thread_ts_for_share(info: dict[str, Any], channel: str) -> str | None:
     return None
 
 
+def _had_hwp_attachment(message: dict[str, Any]) -> bool:
+    for f in message.get("files", []) or []:
+        if pathlib.Path(f.get("name") or "").suffix.lower() in HWP_EXTS:
+            return True
+    return False
+
+
+# Errors that simply mean "the thread/message is already gone" — expected when
+# we delete the last reply and Slack then drops the tombstoned parent.
+_GONE_ERRORS = {"thread_not_found", "message_not_found", "channel_not_found"}
+
+
+def _bot_reply_tss(client, channel: str, thread_ts: str, bot_user_id: str) -> list[str]:
+    """All message ts in ``thread_ts`` authored by the bot (excludes parent)."""
+    try:
+        resp = client.conversations_replies(channel=channel, ts=thread_ts, limit=100)
+    except Exception as e:
+        if getattr(e, "response", {}).get("error") in _GONE_ERRORS:
+            return []
+        log.exception("conversations_replies failed channel=%s ts=%s", channel, thread_ts)
+        return []
+    return [
+        m.get("ts")
+        for m in (resp.get("messages") or [])
+        if m.get("ts") != thread_ts and m.get("user") == bot_user_id and m.get("ts")
+    ]
+
+
+def _parent_deleted(client, channel: str, thread_ts: str) -> bool:
+    try:
+        resp = client.conversations_replies(channel=channel, ts=thread_ts, limit=1)
+    except Exception:
+        return False
+    msgs = resp.get("messages") or []
+    return not msgs or msgs[0].get("subtype") == "tombstone"
+
+
+def _delete_replies(client, channel: str, reply_tss: list[str], reason: str) -> None:
+    for ts in reply_tss:
+        try:
+            client.chat_delete(channel=channel, ts=ts)
+            log.info("deleted preview reply channel=%s reply=%s (%s)", channel, ts, reason)
+        except Exception as e:
+            if getattr(e, "response", {}).get("error") != "message_not_found":
+                log.exception("failed to delete reply channel=%s reply=%s", channel, ts)
+
+
 def build_app(bot_token: str) -> App:
     app = App(token=bot_token)
+    bot_user_id = app.client.auth_test().get("user_id")
 
     @app.event("file_shared")
     def handle_file_shared(event: dict[str, Any], client, logger: logging.Logger) -> None:
@@ -155,6 +210,62 @@ def build_app(bot_token: str) -> App:
                 )
             except Exception:
                 log.exception("upload failed file=%s", file_id)
+                return
+
+            # Race guard: if the uploader deleted the original while we were
+            # converting (~10s), the message_deleted event already fired before
+            # this reply existed. Our reply is now orphaned under a tombstone —
+            # detect that and clean it up right away.
+            if thread_ts and _parent_deleted(client, channel, thread_ts):
+                _delete_replies(
+                    client, channel,
+                    _bot_reply_tss(client, channel, thread_ts, bot_user_id),
+                    reason="original deleted during conversion",
+                )
+
+    @app.event("message")
+    def handle_message(event: dict[str, Any], client, logger: logging.Logger) -> None:
+        # Deleting a message arrives as one of two events:
+        #   - message_deleted: the message had NO thread replies (fully removed).
+        #   - message_changed whose new message is a "tombstone": it HAD replies,
+        #     so Slack keeps the thread and just blanks the parent. Our preview
+        #     is a reply, so an original we care about almost always takes this
+        #     second path — handling only message_deleted misses every real case.
+        subtype = event.get("subtype")
+        channel = event.get("channel")
+        if subtype == "message_deleted":
+            deleted_ts = event.get("deleted_ts")
+            prev = event.get("previous_message") or {}
+        elif subtype == "message_changed" and (event.get("message") or {}).get("subtype") == "tombstone":
+            deleted_ts = (event.get("message") or {}).get("ts")
+            prev = event.get("previous_message") or {}
+        else:
+            return
+        if not channel or not deleted_ts:
+            return
+
+        # Loop guard: never react to deletion of our own messages.
+        if prev.get("user") == bot_user_id:
+            return
+        # When we delete the last reply, Slack drops the tombstoned parent and
+        # sends a follow-up message_deleted whose prior message is that
+        # tombstone — nothing left to do, and its thread is already gone.
+        if prev.get("subtype") == "tombstone":
+            return
+        # If the deleted message had attachments and none were HWP, it isn't an
+        # original we previewed. (No file info → fall through and scan to be safe.)
+        files = prev.get("files")
+        if files is not None and not _had_hwp_attachment(prev):
+            return
+
+        reply_tss = _bot_reply_tss(client, channel, deleted_ts, bot_user_id)
+        if not reply_tss:
+            return
+        log.info(
+            "original deleted channel=%s ts=%s; removing %d preview reply(ies)",
+            channel, deleted_ts, len(reply_tss),
+        )
+        _delete_replies(client, channel, reply_tss, reason="original deleted")
 
     return app
 

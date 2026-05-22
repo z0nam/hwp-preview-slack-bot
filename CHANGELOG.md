@@ -3,6 +3,25 @@
 This project follows **CalVer**: `YYYY.0M.0D.N` where `N` increments
 for multiple releases on the same date.
 
+## 2026.05.22.1 — 2026-05-22
+
+- **Feature**: when the original HWP/HWPX upload is deleted, the bot now
+  deletes its own preview reply too. Previously a non-admin uploader who
+  deleted their file was left with an orphaned PDF/DOCX preview they had no
+  permission to remove. The bot reads the thread back and `chat.delete`s every
+  reply it authored — and only its own; other people's thread replies are left
+  untouched. No state is persisted — it works across restarts and for multiple
+  HWPs in one message. A post-upload check also catches the original being
+  deleted mid-conversion, before our reply exists.
+  - Note: deleting a message that has thread replies arrives as a
+    `message_changed` → "tombstone" event, not `message_deleted` (the original
+    stays as a tombstone so the thread survives); the bot handles both forms.
+- Requires subscribing the app to `message.channels` / `message.groups` /
+  `message.im` / `message.mpim` bot events. No new OAuth scopes — these reuse
+  the existing `*:history` scopes, and deleting one's own message needs only
+  `chat:write`. If the events aren't added, previews still post; they just
+  won't auto-clean.
+
 ## 2026.05.18.1 — 2026-05-18
 
 - **Feature**: every HWP/HWPX upload now produces **both** a PDF and a
