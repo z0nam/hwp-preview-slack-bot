@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -26,6 +27,8 @@ from typing import Any
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+
+from . import section_split
 
 load_dotenv()
 
@@ -51,6 +54,66 @@ def _download(url: str, dest: pathlib.Path, token: str) -> None:
     with urllib.request.urlopen(req) as resp, dest.open("wb") as f:
         while chunk := resp.read(1024 * 64):
             f.write(chunk)
+
+
+def _convert_pdf(src: pathlib.Path, outdir: pathlib.Path) -> pathlib.Path | None:
+    """Convert *src* to PDF via the convert script; return the PDF path or None."""
+    result = subprocess.run(
+        [str(CONVERT_SH), "pdf", str(src), str(outdir)],
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    out = src.with_suffix(".pdf")
+    if result.returncode == 0 and out.exists():
+        return out
+    tail = (result.stderr or result.stdout or "").strip()[-300:]
+    log.warning("pdf convert failed src=%s rc=%s tail=%s", src.name, result.returncode, tail or "(no output)")
+    return None
+
+
+def _split_convert_merge(hwpx: pathlib.Path, workdir: pathlib.Path) -> tuple[pathlib.Path | None, int, int]:
+    """Fallback for HWPX that crashes H2Orestart whole: convert each body
+    section on its own and merge the PDFs.
+
+    Returns ``(merged_pdf_or_None, sections_ok, sections_total)``. A single
+    oversized section can still crash on its own, so this is best-effort —
+    ``sections_ok < sections_total`` means whole sections are missing from the
+    merged preview. Requires ``pdfunite`` (poppler) to merge >1 part.
+    """
+    try:
+        indices = section_split.section_indices(hwpx)
+    except Exception:
+        log.exception("could not read sections for split fallback file=%s", hwpx.name)
+        return None, 0, 0
+    if not indices:
+        return None, 0, 0
+
+    parts: list[pathlib.Path] = []
+    for i in indices:
+        try:
+            part = section_split.build_single_section(hwpx, i, workdir / f"_sec{i}.hwpx")
+        except Exception:
+            log.exception("could not build single-section doc idx=%s file=%s", i, hwpx.name)
+            continue
+        pdf = _convert_pdf(part, workdir)
+        if pdf is not None:
+            parts.append(pdf)
+
+    total = len(indices)
+    if not parts:
+        return None, 0, total
+
+    merged = workdir / f"{hwpx.stem}.pdf"
+    if len(parts) == 1:
+        shutil.copyfile(parts[0], merged)
+        return merged, 1, total
+    if not shutil.which("pdfunite"):
+        log.warning("pdfunite not found; returning first converted section only")
+        shutil.copyfile(parts[0], merged)
+        return merged, 1, total
+    subprocess.run(["pdfunite", *[str(p) for p in parts], str(merged)], check=True, timeout=120)
+    return merged, len(parts), total
 
 
 def _thread_ts_for_share(info: dict[str, Any], channel: str) -> str | None:
@@ -144,17 +207,18 @@ def build_app(bot_token: str) -> App:
             local_input = td_path / name
             try:
                 _download(download_url, local_input, bot_token)
-            except Exception as e:
+            except Exception:
+                # Post a terse failure note (no stack trace) so a silent bot
+                # isn't mistaken for one that's down — but keep the channel clean.
                 log.exception("download failed file=%s", file_id)
                 client.chat_postMessage(
                     channel=channel,
                     thread_ts=thread_ts,
-                    text=f":warning: `{name}` 다운로드 실패: `{e}`",
+                    text=f":warning: `{name}` 변환 실패",
                 )
                 return
 
             produced: list[pathlib.Path] = []
-            failures: list[tuple[str, str]] = []
             with _convert_lock:
                 for fmt in OUT_FORMATS:
                     result = subprocess.run(
@@ -169,27 +233,56 @@ def build_app(bot_token: str) -> App:
                     else:
                         tail = (result.stderr or result.stdout or "").strip()[-500:]
                         log.warning(
-                            "conversion failed file=%s fmt=%s rc=%s",
-                            file_id, fmt, result.returncode,
+                            "conversion failed file=%s fmt=%s rc=%s tail=%s",
+                            file_id, fmt, result.returncode, tail or "(no output)",
                         )
-                        failures.append((fmt, tail or "(no output)"))
+
+            # Whole-doc conversion produced nothing. For HWPX, some documents
+            # crash H2Orestart only when imported whole; try converting each
+            # body section on its own and merge the PDFs (best-effort preview).
+            fallback_parts = 0
+            fallback_total = 0
+            if not produced and ext == ".hwpx":
+                log.info("whole-doc conversion failed; trying section-split fallback file=%s", file_id)
+                with _convert_lock:
+                    merged, fallback_parts, fallback_total = _split_convert_merge(local_input, td_path)
+                if merged is not None:
+                    produced.append(merged)
 
             if not produced:
-                detail = "\n".join(f"- {fmt}: {tail}" for fmt, tail in failures)
+                # Every path failed. Post a terse "변환 실패" (no stack trace)
+                # so users can tell a failed conversion from a dead bot; the
+                # detailed error is in the logs above.
+                log.warning("conversion produced nothing file=%s name=%s", file_id, name)
                 client.chat_postMessage(
                     channel=channel,
                     thread_ts=thread_ts,
-                    text=f":warning: `{name}` 변환 실패\n```{detail}```",
+                    text=f":warning: `{name}` 변환 실패",
                 )
                 return
 
-            comment_parts = [
-                ":page_facing_up: 자동 변환 미리보기 (원본 hwp는 위 첨부 그대로 사용)."
-            ]
-            if failures:
-                missed = ", ".join(fmt.upper() for fmt, _ in failures)
-                comment_parts.append(f":warning: {missed} 변환은 실패.")
+            # Pick the right caption. A section-split fallback is a degraded
+            # preview: sections were rendered independently (page numbers and
+            # headers may differ from the original), and if some sections still
+            # failed, whole sections are missing — say so explicitly.
+            if fallback_total:
+                if fallback_parts < fallback_total:
+                    comment = (
+                        f":warning: 통짜 변환이 실패해 섹션별로 나눠 변환한 미리보기예요. "
+                        f"전체 {fallback_total}개 구간 중 {fallback_parts}개만 포함됐고 "
+                        f"(나머지는 변환 실패로 빠짐), 레이아웃·쪽번호가 원본과 다를 수 있어요. "
+                        f"정확한 내용은 위 원본 hwp를 확인하세요."
+                    )
+                else:
+                    comment = (
+                        ":page_facing_up: 통짜 변환이 실패해 섹션별로 나눠 변환·병합한 미리보기예요. "
+                        "쪽번호·머리말 등 레이아웃이 원본과 다를 수 있어요 (원본 hwp는 위 첨부 그대로 사용)."
+                    )
+            else:
+                comment = ":page_facing_up: 자동 변환 미리보기 (원본 hwp는 위 첨부 그대로 사용)."
 
+            # Upload whatever succeeded, cleanly — if only one format made it, we
+            # just post that one without flagging the other as failed.
             try:
                 client.files_upload_v2(
                     channel=channel,
@@ -202,7 +295,7 @@ def build_app(bot_token: str) -> App:
                         }
                         for p in produced
                     ],
-                    initial_comment="\n".join(comment_parts),
+                    initial_comment=comment,
                 )
                 log.info(
                     "uploaded file=%s outputs=%s",
