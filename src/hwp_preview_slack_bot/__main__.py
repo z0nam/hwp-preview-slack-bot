@@ -268,18 +268,18 @@ def build_app(bot_token: str) -> App:
             if fallback_total:
                 if fallback_parts < fallback_total:
                     comment = (
-                        f":warning: 통짜 변환이 실패해 섹션별로 나눠 변환한 미리보기예요. "
-                        f"전체 {fallback_total}개 구간 중 {fallback_parts}개만 포함됐고 "
-                        f"(나머지는 변환 실패로 빠짐), 레이아웃·쪽번호가 원본과 다를 수 있어요. "
-                        f"정확한 내용은 위 원본 hwp를 확인하세요."
+                        f":warning: 전체 변환이 실패하여 섹션별로 나누어 변환한 미리보기입니다. "
+                        f"전체 {fallback_total}개 구간 중 {fallback_parts}개만 포함되었으며 "
+                        f"(나머지는 변환 실패로 누락), 레이아웃·쪽번호가 원본과 다를 수 있습니다. "
+                        f"정확한 내용은 위 원본 hwp를 확인하시기 바랍니다."
                     )
                 else:
                     comment = (
-                        ":page_facing_up: 통짜 변환이 실패해 섹션별로 나눠 변환·병합한 미리보기예요. "
-                        "쪽번호·머리말 등 레이아웃이 원본과 다를 수 있어요 (원본 hwp는 위 첨부 그대로 사용)."
+                        ":page_facing_up: 전체 변환이 실패하여 섹션별로 나누어 변환·병합한 미리보기입니다. "
+                        "쪽번호·머리말 등 레이아웃이 원본과 다를 수 있습니다 (원본 hwp는 위 첨부를 그대로 사용하시기 바랍니다)."
                     )
             else:
-                comment = ":page_facing_up: 자동 변환 미리보기 (원본 hwp는 위 첨부 그대로 사용)."
+                comment = ":page_facing_up: 자동 변환 미리보기입니다 (원본 hwp는 위 첨부를 그대로 사용하시기 바랍니다)."
 
             # Upload whatever succeeded, cleanly — if only one format made it, we
             # just post that one without flagging the other as failed.
