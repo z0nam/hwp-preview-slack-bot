@@ -1,7 +1,6 @@
 """Generate a 1024x1024 Slack app icon for the HWP preview bot.
 
-The icon visual stays HWP→PDF because PDF is the primary preview shown
-inline in Slack; DOCX is the secondary editable companion.
+The icon visual is HWP→PDF: the bot renders an inline PDF preview.
 """
 
 from pathlib import Path

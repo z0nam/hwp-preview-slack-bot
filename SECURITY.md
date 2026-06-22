@@ -26,13 +26,13 @@ high-severity issues; lower-severity issues may be batched.
 In scope:
 
 - The bot code in `src/hwp_preview_slack_bot/`.
-- The shell conversion wrapper `scripts/hwp2x.sh`.
+- The shell conversion wrapper `scripts/hwp2pdf.sh` and fetch helper
+  `scripts/fetch_rhwp.sh`.
 - The launchd template in `examples/`.
 
 Out of scope (please report upstream instead):
 
-- LibreOffice / `soffice` bugs.
-- H2Orestart bugs — file at [ebandal/H2Orestart](https://github.com/ebandal/H2Orestart).
+- rhwp bugs — file at [edwardkim/rhwp](https://github.com/edwardkim/rhwp).
 - Slack platform bugs.
 - Issues that require local code execution as the bot operator
   (e.g. "the operator could put a malicious script in `vendor/`").
@@ -45,7 +45,7 @@ The bot inherently:
   shared filesystems and out of version control.
 - Downloads arbitrary files posted to channels it is in. Conversion runs
   in a fresh temporary directory and the only thing returned to Slack is
-  the resulting PDF, but you are still feeding user content into
-  LibreOffice. Keep your LibreOffice + H2Orestart up to date.
+  the resulting PDF, but you are still feeding user content into rhwp.
+  Keep the pinned rhwp version current (`scripts/fetch_rhwp.sh`).
 - Inherits the operator's filesystem permissions. Run the bot under a
   dedicated user account if you are nervous about this.

@@ -6,7 +6,9 @@
 
 채널에 누군가 hwp 파일을 올리면 Slack 에서 미리보기가 안 되어 다운로드받아 한컴오피스로 열어야 한다. 내부 문서 유통 속도가 느려짐 — 이걸 해결하기 위한 봇.
 
-**해결 방향**: 채널의 `file_shared` 이벤트를 감지 → hwp/hwpx면 PDF + DOCX 두 포맷으로 변환 → 동일 스레드에 회신 (원본 hwp는 유지). PDF는 읽기용, DOCX는 워드/구글닥스에서 바로 편집 가능한 출발점.
+**해결 방향**: 채널의 `file_shared` 이벤트를 감지 → hwp/hwpx면 **PDF**로 변환 → 동일 스레드에 회신 (원본 hwp는 유지). PDF는 읽기용 미리보기.
+
+> 변환 엔진은 2026-06-23에 LibreOffice+H2Orestart → **rhwp**로 교체되었고, 그때 DOCX 출력은 폐기됨. 아래 "변환 백엔드 결정/셋업" 절은 그 이전의 역사적 기록이며, 현행 엔진은 "변환 백엔드 교체: rhwp" 절을 보라.
 
 원래 [`ji-slack-admin`](../ji-slack-admin) (제주연구원 Slack 운영 폴더) 안에서 한 잡일로 시작했으나, 잘 풀려서 2026-05-14에 독립 프로젝트(`hwp-pdf-slack-bot`)로 분리. 2026-05-18에 DOCX 출력을 추가하면서 `hwp-preview-slack-bot` 으로 일반화 개명.
 
@@ -21,7 +23,18 @@
   - 변환 도중 한컴 보안경고창이 떠서 비대화형 자동화 불가
 - B안 선택 이유: 맥/리눅스 헤드리스 동작 가능, 클라우드 친화적, 봇 PoC 빠르게 가능. 충실도(복잡 레이아웃·폰트) 깨지면 그때 A/C 검토.
 
-## 변환 백엔드 셋업 메모 (macOS arm64)
+## 변환 백엔드 교체: rhwp로 전환 (2026-06-23)
+
+**현행 엔진.** LibreOffice+H2Orestart 스택을 [rhwp](https://github.com/edwardkim/rhwp)(Rust HWP/HWPX 렌더 엔진, MIT)로 통째 교체. 배경·A/B·결정 게이트는 `docs/rhwp-migration.md` 참조.
+
+- **왜 교체**: rhwp는 단일 바이너리(~10MB, Java/LibreOffice 불요)로 `.hwp`(HWP5)·`.hwpx`를 네이티브 렌더. 스택 대폭 단순화 + 변환 속도 수초→~1s + 공유 프로필 경쟁 없음.
+- **fidelity 스팟체크**(samples 2종, rhwp v0.7.17 vs LO+H2O): 내용 충실도 동등~우수(특히 표·폰트), 페이지네이션은 벌어질 수 있으나 글랜스 미리보기엔 무관. → 충분.
+- **DOCX 폐기**: rhwp는 렌더러라 DOCX 내보내기 없음. "편집용 가져가기"는 실사용 거의 없어 PDF-only로 결정.
+- **섹션분할 폴백 제거**: H2Orestart 누적 콘텐츠 크래시 우회용이었는데, rhwp는 그 버그가 없어 불필요해짐. (관련 메모: `h2orestart-cumulative-crash` 자동메모)
+- **바이너리 배포**: 레포에 커밋하지 않음(플랫폼 종속·10MB). `scripts/fetch_rhwp.sh`가 플랫폼 감지→`gh release download`→SHA256 검증→`vendor/rhwp/`에 설치(gitignore). 버전은 스크립트 상단 `RHWP_VERSION`에 핀.
+- **폰트**: macOS는 시스템 폰트로 한글 렌더 OK. 리눅스 최소 서버는 한글 폰트 설치 또는 `RHWP_FONT_PATH=/경로` 환경변수(`hwp2pdf.sh`가 `--font-path`로 전달).
+
+## 변환 백엔드 셋업 메모 (macOS arm64) — 역사적 기록 (2026-06-23 이전)
 
 설치된 컴포넌트:
 
@@ -53,8 +66,8 @@
 - 진입점: `python -m hwp_preview_slack_bot` (= `src/hwp_preview_slack_bot/__main__.py`, 또는 `./scripts/run_bot.sh`)
 - 연결: Socket Mode (`slack-bolt` + `slack_sdk`, App-Level Token `xapp-…` + Bot Token `xoxb-…`)
 - 트리거: `file_shared` 이벤트. 확장자 `.hwp` / `.hwpx` 만 처리, 그 외 무시.
-- 처리 흐름: `files.info` → `url_private_download` 로 다운로드 → `scripts/hwp2x.sh pdf` + `scripts/hwp2x.sh docx` 순차 호출 (둘 다 lock 안에서 직렬화) → `files.upload_v2(file_uploads=[...])` 로 PDF + DOCX 묶어서 동일 스레드 회신.
-- 한쪽 포맷만 실패하면 성공한 쪽만 올리고 `:warning:` 으로 어느 포맷이 실패했는지 표시. 둘 다 실패면 에러 메시지만.
+- 처리 흐름: `files.info` → `url_private_download` 로 다운로드 → `scripts/hwp2pdf.sh <input> <outdir>` 호출 (lock 안에서 직렬화) → `files.upload_v2` 로 PDF를 동일 스레드 회신.
+- 변환 실패면 스택트레이스 없이 `:warning: \`<name>\` 변환 실패` 한 줄만 (죽은 봇과 구분되도록). 상세는 로그.
 - 회신 실패/변환 실패는 `chat.postMessage` 로 :warning: 알림.
 - `App(token=…)` 가 import 시점에 `auth.test` 부르므로 모듈 로드 사이드이펙트 방지 위해 `build_app()` 팩토리 패턴.
 - 환경: `python-dotenv` 로 `.env` 자동 로드, 토큰은 거기서.
@@ -73,9 +86,9 @@
 - plist: `~/Library/LaunchAgents/com.namun.hwp-preview-bot.plist` (레포 밖, 호스트 종속)
 - 로그: `~/Library/Logs/hwp-preview-bot.{log,err}` (실로그는 stderr 쪽)
 - KeepAlive=true, ThrottleInterval=10 — 크래시 시 자동 재시작
-- PATH 환경변수에 `/Users/namun/.local/bin`(uv), `/opt/homebrew/bin`(soffice) 명시
+- PATH 환경변수에 `/Users/namun/.local/bin`(uv), `/opt/homebrew/bin` 명시. rhwp는 `vendor/rhwp/`에서 절대경로로 호출하므로 PATH 불요.
 - 토큰 회전 시 `.env` 수정 후 `launchctl kickstart -k gui/$(id -u)/com.namun.hwp-preview-bot`
-- 클라우드/리눅스 이전 시 plist 폐기 후 systemd unit 으로 교체 (LibreOffice + JDK + H2Orestart 셋업은 거의 동일하게 재현됨)
+- 클라우드/리눅스 이전 시 plist 폐기 후 systemd unit 으로 교체 (`scripts/fetch_rhwp.sh` 한 번 + 한글 폰트만 있으면 동일하게 재현됨)
 
 ## Slack 앱 아이콘
 
@@ -99,10 +112,15 @@
 - 변환 스크립트 `hwp2pdf.sh` → 인자 받는 `hwp2x.sh <fmt> <input> [outdir]` 로 통합
 - 버전 `2026.05.18.1` 태그
 
+## 2026-06-23 (변환 엔진 교체)
+
+- 변환 백엔드를 LibreOffice+H2Orestart → rhwp로 교체, DOCX 출력·섹션분할 폴백 제거, PDF-only로 단순화. 버전 `2026.06.23.1`.
+- 샘플 2종 fidelity 스팟체크 통과. 상세: `docs/rhwp-migration.md`.
+
 ## 향후 개선 후보 (낙서)
 
-- 변환 충실도가 부족한 hwp 패턴 식별 → H2Orestart 옵션 튜닝 또는 백엔드 교체
+- rhwp 페이지네이션이 한컴과 벌어지는 케이스 — 미리보기엔 무관하나, 폰트 확보(`--font-path`)로 일부 개선 가능
 - 변환 timeout 동적 조정 (파일 크기 기반)
 - 메트릭 / 알림 (실패율, 평균 변환 시간)
 - 리눅스 / Docker 이미지로 호스트 이전
-- DOCX 변환 충실도 평가 후 옵션화 (`always` / `on-react` / `off`) 검토
+- rhwp 신버전 추적 (`RHWP_VERSION` 핀 업데이트)

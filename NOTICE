@@ -10,27 +10,14 @@ root of this repository.
 Third-party components bundled or required at runtime
 ================================================================
 
-H2Orestart (vendor/H2Orestart-v0.7.12.oxt)
-  Homepage: https://github.com/ebandal/H2Orestart
-  License:  GNU Lesser General Public License v2.1 or later (LGPL-2.1+)
-  Purpose:  LibreOffice extension that adds HWP/HWPX import filters,
-            used by scripts/hwp2x.sh for the actual document conversion.
-  The full LGPL text and source are available at the project homepage.
-  Users may replace this bundled binary with a modified version of
-  H2Orestart at any time (drop a new .oxt into vendor/ and re-run
-  `unopkg add`).
-
-LibreOffice
-  Homepage: https://www.libreoffice.org/
-  License:  Mozilla Public License v2.0
-  Purpose:  Headless document conversion engine. Installed by the user,
-            not bundled.
-
-OpenJDK
-  Homepage: https://openjdk.org/
-  License:  GPL-2.0-with-classpath-exception
-  Purpose:  Java runtime required by H2Orestart. Installed by the user,
-            not bundled.
+rhwp
+  Homepage: https://github.com/edwardkim/rhwp
+  License:  MIT
+  Purpose:  Rust HWP/HWPX render engine that performs the actual document
+            conversion (HWP/HWPX → PDF), invoked by scripts/hwp2pdf.sh.
+  Not bundled in this repository: scripts/fetch_rhwp.sh downloads a pinned,
+  checksum-verified release binary into vendor/rhwp/ at install time. Users
+  may replace it with any other build of rhwp at any time.
 
 Slack Bolt for Python
   Homepage: https://github.com/SlackAPI/bolt-python

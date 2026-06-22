@@ -3,6 +3,23 @@
 This project follows **CalVer**: `YYYY.0M.0D.N` where `N` increments
 for multiple releases on the same date.
 
+## 2026.06.23.1 — 2026-06-23
+
+- **Conversion engine swapped: LibreOffice + H2Orestart → [rhwp](https://github.com/edwardkim/rhwp).**
+  The bot now renders previews with rhwp, a single self-contained binary with
+  its own HWP/HWPX render engine — no Java, no LibreOffice, no shared user
+  profile. Binary `.hwp` (HWP5) and `.hwpx` are both rendered natively.
+  Conversion drops from seconds to ~1s, fidelity is equal-or-better on the
+  sample set (notably tables and fonts), and the entire LibreOffice/OpenJDK/
+  H2Orestart stack is gone.
+  - `scripts/fetch_rhwp.sh` downloads + checksum-verifies the rhwp release
+    binary into `vendor/rhwp/` (gitignored). `scripts/hwp2x.sh` is replaced by
+    `scripts/hwp2pdf.sh`. The bundled `vendor/H2Orestart-v0.7.12.oxt` is removed.
+- **DOCX output dropped.** The bot now posts a PDF preview only (DOCX export
+  isn't supported by rhwp, and the edit-from-DOCX path was effectively unused).
+- **Removed**: the section-split HWPX fallback (it existed only to work around
+  an H2Orestart cumulative-content crash that rhwp does not share).
+
 ## 2026.05.22.1 — 2026-05-22
 
 - **Feature**: when the original HWP/HWPX upload is deleted, the bot now

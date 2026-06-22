@@ -9,21 +9,18 @@ HWP/HWPX previews in Slack — and PRs that keep it that way are most welcome.
 git clone git@github.com:z0nam/hwp-preview-slack-bot.git
 cd hwp-preview-slack-bot
 
-# system deps (macOS arm64 example — see README for full setup)
-brew install --cask libreoffice
-brew install openjdk@21
-unopkg add ./vendor/H2Orestart-v0.7.12.oxt
+# fetch the rhwp render binary (needs the gh CLI)
+./scripts/fetch_rhwp.sh
 
 # python deps
 uv sync
 ```
 
-Run the conversion script standalone to confirm the LibreOffice +
-H2Orestart toolchain works on your machine:
+Run the conversion script standalone to confirm rhwp works on your machine:
 
 ```bash
-./scripts/hwp2x.sh pdf  samples/sample-binary.hwp /tmp/
-./scripts/hwp2x.sh docx samples/sample-binary.hwp /tmp/
+./scripts/hwp2pdf.sh samples/sample-binary.hwp /tmp/
+./scripts/hwp2pdf.sh samples/sample-xml.hwpx /tmp/
 ```
 
 To run the bot itself you need a Slack workspace and two tokens — see
@@ -33,12 +30,12 @@ the README's "Slack app setup" and "Configure and run" sections.
 
 - Bug fixes (conversion edge cases, Slack event handling).
 - Linux setup walkthroughs verified end-to-end.
-- A `Dockerfile` / `docker-compose.yml` that bundles LibreOffice + JDK +
-  H2Orestart and runs the bot.
-- Tests for `scripts/hwp2x.sh` and the event handler in
+- A `Dockerfile` / `docker-compose.yml` that fetches rhwp + Korean fonts and
+  runs the bot.
+- Tests for `scripts/hwp2pdf.sh` and the event handler in
   `src/hwp_preview_slack_bot/__main__.py`.
-- Better fidelity: tuning `soffice` flags, alternative HWP backends,
-  font handling improvements.
+- Better fidelity: rhwp `--font-path` / font-bundling improvements, tracking
+  newer rhwp releases.
 - Operational extras: metrics, structured logging, channel topic-based
   opt-in / opt-out.
 

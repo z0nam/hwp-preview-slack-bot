@@ -1,14 +1,14 @@
 [project]
 name = "hwp-preview-slack-bot"
-version = "2026.06.06.1"
-description = "Slack bot that auto-converts uploaded Korean HWP/HWPX files into PDF + DOCX previews via headless LibreOffice + H2Orestart."
+version = "2026.06.23.1"
+description = "Slack bot that auto-converts uploaded Korean HWP/HWPX files into PDF previews via rhwp (no Java / no LibreOffice)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "Namun Cho" },
 ]
-keywords = ["slack", "slack-bot", "hwp", "hwpx", "pdf", "docx", "korean", "libreoffice", "h2orestart"]
+keywords = ["slack", "slack-bot", "hwp", "hwpx", "pdf", "korean", "rhwp"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

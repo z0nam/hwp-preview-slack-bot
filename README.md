@@ -3,69 +3,54 @@
 > 한국어 안내: [README.ko.md](README.ko.md)
 
 A Slack bot that auto-converts uploaded **HWP / HWPX** files (the
-Korean Hancom Office formats) into **PDF + DOCX** previews and posts
-both back into the same thread, so teammates without Hancom Office
-installed can read the document right in Slack — or grab the DOCX
-to edit it in Word / Google Docs / LibreOffice. The original `.hwp`
-upload is left untouched.
+Korean Hancom Office formats) into a **PDF** preview and posts it back
+into the same thread, so teammates without Hancom Office installed can
+read the document right in Slack. The original `.hwp` upload is left
+untouched.
 
-Conversion runs entirely on a headless **LibreOffice + [H2Orestart](https://github.com/ebandal/H2Orestart)**
-stack, so the bot is happy on macOS or Linux without any Windows /
-Hancom dependency.
+Conversion runs on [**rhwp**](https://github.com/edwardkim/rhwp), a single
+self-contained binary with its own HWP/HWPX render engine — **no Java, no
+LibreOffice, no Hancom dependency**. Binary `.hwp` (HWP5) and `.hwpx` are
+both rendered natively, on macOS or Linux.
 
 ## Features
 
 - Listens for Slack `file_shared` events; processes only `.hwp` / `.hwpx`.
-- Replies in the same channel & thread with the generated PDF **and** DOCX.
+- Replies in the same channel & thread with the generated PDF.
 - Deletes its own preview reply when the original upload is deleted, so a
   non-admin uploader isn't left with an orphaned preview they can't remove.
 - Runs as a long-lived Socket Mode bot — no public HTTPS endpoint needed.
-- Self-contained: a single Python module + a shell script wrapping `soffice`.
+- Self-contained: a single Python module + a shell script wrapping `rhwp`.
 - macOS launchd template included for keep-alive operation.
 
 ## Requirements
 
 - Python ≥ 3.10
 - [uv](https://docs.astral.sh/uv/) for dependency management
-- LibreOffice (CLI: `soffice`)
-- OpenJDK 21 (required by H2Orestart at conversion time)
-- The bundled H2Orestart extension at `vendor/H2Orestart-v0.7.12.oxt`
+- [GitHub CLI](https://cli.github.com/) (`gh`) to fetch the rhwp release binary
 - A Slack workspace where you can install a custom app (Pro plan or higher
   for Socket Mode; works on any non-free plan)
 
-## Install (macOS arm64 example)
+No system conversion stack is needed — `scripts/fetch_rhwp.sh` downloads the
+~10 MB rhwp binary (checksum-verified) into `vendor/rhwp/`.
+
+## Install
 
 ```bash
-brew install --cask libreoffice
-brew install openjdk@21
-sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk \
-  /Library/Java/JavaVirtualMachines/openjdk-21.jdk
-xattr -dr com.apple.quarantine /Applications/LibreOffice.app
-
-# Initialize LibreOffice's user profile so the Java config file gets created
-/Applications/LibreOffice.app/Contents/MacOS/soffice --headless --terminate_after_init
-
-# Then flip "enabled" to true in:
-#   ~/Library/Application Support/LibreOffice/4/user/config/javasettings_MacOSX_AARCH64.xml
-# (change <enabled xsi:nil="true"/> to <enabled xsi:nil="false">true</enabled>)
-# LibreOffice auto-detects the JDK; only this enabled flag needs the flip.
-
-# Register the H2Orestart extension
-unopkg add ./vendor/H2Orestart-v0.7.12.oxt
-# A "NoConnectException pipe" error is benign — the extension still registers.
+# Fetch + verify the rhwp binary for this platform (macOS arm64/x86_64, Linux x86_64)
+./scripts/fetch_rhwp.sh
 ```
-
-Linux is structurally the same: install LibreOffice + OpenJDK from your
-package manager, then `unopkg add ./vendor/H2Orestart-v0.7.12.oxt`. PRs
-with a tested Linux setup walkthrough welcome.
 
 Sanity-check the conversion pipeline by itself:
 
 ```bash
-./scripts/hwp2x.sh pdf  samples/sample-binary.hwp
-./scripts/hwp2x.sh docx samples/sample-binary.hwp
-./scripts/hwp2x.sh pdf  samples/sample-xml.hwpx
+./scripts/hwp2pdf.sh samples/sample-binary.hwp
+./scripts/hwp2pdf.sh samples/sample-xml.hwpx
 ```
+
+On macOS the system fonts are enough to render Korean documents. On a minimal
+Linux server, install Korean fonts (e.g. `fonts-nanum`) or point rhwp at a font
+directory with `RHWP_FONT_PATH=/path/to/fonts ./scripts/hwp2pdf.sh …`.
 
 ## Slack app setup (one-off)
 
@@ -104,8 +89,8 @@ uv sync
 ```
 
 Invite the bot to any channel where you want HWP previews (`/invite @<bot-name>`).
-Upload a `.hwp` or `.hwpx` — a PDF + DOCX reply lands in the same thread
-within seconds to a few tens of seconds depending on document size.
+Upload a `.hwp` or `.hwpx` — a PDF reply lands in the same thread within a
+second or two.
 
 ## Keep-alive on macOS (launchd)
 
@@ -127,31 +112,32 @@ Assumptions: the host Mac is set to auto-login and to not sleep — LaunchAgents
 run inside a GUI user session.
 
 For Linux deployments, write a systemd unit pointing at the same
-`scripts/run_bot.sh`; the conversion stack behaves identically.
+`scripts/run_bot.sh`; the conversion stack behaves identically (run
+`scripts/fetch_rhwp.sh` once to get the Linux binary).
 
 ## Repository layout
 
 ```
 src/hwp_preview_slack_bot/__main__.py  Bot entry point (Socket Mode)
-scripts/hwp2x.sh                       HWP/HWPX → PDF or DOCX via headless soffice
+scripts/hwp2pdf.sh                     HWP/HWPX → PDF via rhwp
+scripts/fetch_rhwp.sh                  Download + checksum-verify the rhwp binary
 scripts/run_bot.sh                     Convenience launcher
 scripts/make_icon.py                   Regenerates assets/icon.png (Pillow)
 assets/icon.png                        Slack app icon, 1024×1024
 samples/                               Conversion-fidelity test inputs
-vendor/H2Orestart-*.oxt                LibreOffice import-filter extension
+vendor/rhwp/                           Fetched rhwp binary (gitignored)
 examples/launchd.template.plist        macOS keep-alive template
 context.md                             Project / decision notes (Korean)
+docs/rhwp-migration.md                 Why the engine moved from LibreOffice to rhwp
 ```
 
 ## Fidelity policy
 
-The PDF and DOCX outputs are intended as "good-enough-to-read"
-previews (and a working starting point for edits in the DOCX case),
-not pixel-faithful substitutes for the source document. Some font /
-table-alignment quirks are expected on heavily-formatted government
-templates. The original HWP stays attached to the Slack message, so
-anyone who needs faithful rendering can still download it. Only a
-complete conversion failure justifies swapping out the backend.
+The PDF output is intended as a "good-enough-to-read" preview, not a
+pixel-faithful substitute for the source document. Pagination and line
+spacing can differ from Hancom's own rendering, and fonts the host lacks
+are substituted. The original HWP stays attached to the Slack message, so
+anyone who needs faithful rendering can still download it.
 
 ## Versioning
 
@@ -163,10 +149,10 @@ see [CHANGELOG.md](CHANGELOG.md).
 
 Licensed under **Apache License 2.0** — see [LICENSE](LICENSE).
 
-The bundled `vendor/H2Orestart-v0.7.12.oxt` is the upstream **H2Orestart**
-LibreOffice extension by Bandal, distributed under **LGPL-2.1-or-later**.
-You may replace it with any other build of H2Orestart at any time.
-Full third-party attribution is in [NOTICE](NOTICE).
+The conversion engine, [**rhwp**](https://github.com/edwardkim/rhwp) by
+Edward Kim, is fetched at install time (not vendored in this repo) and is
+distributed under the **MIT License**. Full third-party attribution is in
+[NOTICE](NOTICE).
 
 ## Contributing & security
 
@@ -175,8 +161,11 @@ Full third-party attribution is in [NOTICE](NOTICE).
 
 ## Acknowledgments
 
-- [**H2Orestart**](https://github.com/ebandal/H2Orestart) by Bandal — the LibreOffice
-  extension that does the actual HWP/HWPX import work. This bot would not be
+- [**rhwp**](https://github.com/edwardkim/rhwp) by Edward Kim — the Rust HWP/HWPX
+  render engine that does the actual conversion work. This bot would not be
   possible without it.
+- This bot previously ran on [**H2Orestart**](https://github.com/ebandal/H2Orestart)
+  by Bandal (a LibreOffice import filter); thanks to that project for carrying
+  the early releases.
 - The initial implementation, OSS-ification, and operational hardening of this
   bot were paired with [**Claude Code**](https://claude.ai/code) by Anthropic.
