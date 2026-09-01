@@ -63,6 +63,20 @@ def _thread_ts_for_share(info: dict[str, Any], channel: str) -> str | None:
     return None
 
 
+def _is_external_file(info: dict[str, Any]) -> bool:
+    """True for files Slack surfaces from an external provider (Google Drive,
+    Dropbox, Box, …) rather than files actually uploaded to Slack.
+
+    When someone pastes a Google Drive link to an .hwpx, Slack's Drive
+    integration mints a file object whose ``name`` ends in ``.hwpx`` and fires
+    ``file_shared`` just like a real upload — but ``url_private_download`` is a
+    provider redirect that needs the *user's* auth, not the document bytes, so
+    the bot's download yields an HTML/permission page and conversion fails. We
+    skip these instead of posting a spurious ``변환 실패``.
+    """
+    return bool(info.get("is_external")) or info.get("mode") == "external"
+
+
 def _had_hwp_attachment(message: dict[str, Any]) -> bool:
     for f in message.get("files", []) or []:
         if pathlib.Path(f.get("name") or "").suffix.lower() in HWP_EXTS:
@@ -126,6 +140,16 @@ def build_app(bot_token: str) -> App:
         ext = pathlib.Path(name).suffix.lower()
         if ext not in HWP_EXTS:
             log.debug("skip non-hwp file id=%s name=%s", file_id, name)
+            return
+
+        # A pasted Google Drive / Dropbox link to an .hwpx looks like an upload
+        # (hwp-suffixed name, file_shared event) but has no downloadable bytes —
+        # trying to convert it only produces a false "변환 실패". Skip quietly.
+        if _is_external_file(info):
+            log.info(
+                "skip external (non-uploaded) file id=%s name=%s external_type=%s",
+                file_id, name, info.get("external_type") or "?",
+            )
             return
 
         log.info("convert request file=%s channel=%s name=%s", file_id, channel, name)
