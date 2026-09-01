@@ -1,6 +1,6 @@
 [project]
 name = "hwp-preview-slack-bot"
-version = "2026.06.23.1"
+version = "2026.09.01.1"
 description = "Slack bot that auto-converts uploaded Korean HWP/HWPX files into PDF previews via rhwp (no Java / no LibreOffice)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,6 +28,11 @@ classifiers = [
 dependencies = [
     "slack-bolt>=1.21",
     "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
 ]
 
 [project.urls]

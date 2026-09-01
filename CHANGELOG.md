@@ -3,6 +3,18 @@
 This project follows **CalVer**: `YYYY.0M.0D.N` where `N` increments
 for multiple releases on the same date.
 
+## 2026.09.01.1 — 2026-09-01
+
+- **Fix**: pasted Google Drive (or Dropbox/Box) links to an `.hwpx` no longer
+  trigger a bogus `변환 실패`. Slack's Drive integration surfaces such a link as
+  a file object with an `.hwpx` name and fires `file_shared` just like a real
+  upload, but `url_private_download` is a provider redirect, not the document
+  bytes — so the download/convert step failed and the bot posted a false
+  failure notice. External (non-uploaded) files are now detected
+  (`is_external` / `mode == "external"`) and skipped quietly.
+- First unit test added (`tests/test_is_external_file.py`); `pytest` in a `dev`
+  dependency group (`uv run --group dev pytest`).
+
 ## 2026.06.23.1 — 2026-06-23
 
 - **Conversion engine swapped: LibreOffice + H2Orestart → [rhwp](https://github.com/edwardkim/rhwp).**
